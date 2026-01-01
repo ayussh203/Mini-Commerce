@@ -20,6 +20,11 @@ spring:
           predicates:
             - Path=/api/orders/**
 
+        - id: inventory-service
+          uri: http://localhost:8083
+          predicates:
+            - Path=/api/inventory/**
+
 security:
   jwt:
     secret: "dev-secret-change-me-please-dev-secret-change-me"
@@ -29,7 +34,3 @@ management:
     web:
       exposure:
         include: health,info
-  endpoint:
-    health:
-      probes:
-        enabled: true

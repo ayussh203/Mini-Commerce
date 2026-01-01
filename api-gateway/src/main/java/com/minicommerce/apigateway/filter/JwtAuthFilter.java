@@ -1,8 +1,9 @@
 package com.minicommerce.apigateway.filter;
 
-import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
-import org.springframework.beans.factory.annotation.Value;
+import com.minicommerce.apigateway.jwt.GatewayJwtService;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+import org.springframework.cloud.gateway.filter.GatewayFilterChain;
 import org.springframework.cloud.gateway.filter.GlobalFilter;
 import org.springframework.core.Ordered;
 import org.springframework.http.HttpHeaders;
@@ -11,20 +12,30 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Mono;
 
-import java.nio.charset.StandardCharsets;
-
 @Component
 public class JwtAuthFilter implements GlobalFilter, Ordered {
 
-    @Value("${security.jwt.secret}")
-    private String secret;
+    private final GatewayJwtService jwt;
+
+    public JwtAuthFilter(GatewayJwtService jwt) {
+        this.jwt = jwt;
+    }
 
     @Override
-    public Mono<Void> filter(ServerWebExchange exchange, org.springframework.cloud.gateway.filter.GatewayFilterChain chain) {
+    public Mono<Void> filter(ServerWebExchange exchange, GatewayFilterChain chain) {
         String path = exchange.getRequest().getURI().getPath();
 
-        // Public routes
+        // PUBLIC: allow auth endpoints
         if (path.startsWith("/api/auth/")) {
+            return chain.filter(exchange);
+        }
+
+        // PROTECTED: orders + inventory (as per US 1.2)
+        boolean protectedRoute =
+                path.startsWith("/api/orders/") ||
+                path.startsWith("/api/inventory/");
+
+        if (!protectedRoute) {
             return chain.filter(exchange);
         }
 
@@ -36,20 +47,20 @@ public class JwtAuthFilter implements GlobalFilter, Ordered {
 
         String token = auth.substring(7);
         try {
-            Jwts.parser()
-                .verifyWith(Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8)))
-                .build()
-                .parseSignedClaims(token);
-        } catch (Exception e) {
+            Claims claims = jwt.parse(token);
+
+            // (optional) you can forward claims to downstream via headers later
+            // e.g. X-User, X-Roles, etc.
+
+            return chain.filter(exchange);
+        } catch (JwtException e) {
             exchange.getResponse().setStatusCode(HttpStatus.UNAUTHORIZED);
             return exchange.getResponse().setComplete();
         }
-
-        return chain.filter(exchange);
     }
 
     @Override
     public int getOrder() {
-        return -50; // after correlation id
+        return -50; // after correlation filter, before routing
     }
 }

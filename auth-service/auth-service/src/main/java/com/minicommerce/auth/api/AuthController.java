@@ -35,6 +35,10 @@ public class AuthController {
 
         String token = jwtService.generateToken(req.username(), List.of("USER"), cid);
 
-        return ResponseEntity.ok(new LoginResponse(token, "Bearer", jwtService.getTtlSeconds()));
+       // return ResponseEntity.ok(new LoginResponse(token, "Bearer", jwtService.getTtlSeconds()));
+       return new ResponseEntity<>(
+               new LoginResponse(token, "Bearer", jwtService.getTtlSeconds()),
+               org.springframework.http.HttpStatus.OK
+       );
     }
 }
