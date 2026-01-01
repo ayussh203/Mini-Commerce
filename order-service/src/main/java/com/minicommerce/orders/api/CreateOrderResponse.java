@@ -1,3 +1,5 @@
 package com.minicommerce.orders.api;
 
-public record CreateOrderResponse(String orderId, String status) {}
+import java.util.UUID;
+
+public record CreateOrderResponse(UUID orderId, String status) {}

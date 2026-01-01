@@ -26,34 +26,34 @@ public class OrderService {
 
     public CreateOrderResponse createOrder(CreateOrderRequest req, String correlationId) {
         UUID orderId = UUID.randomUUID();
+        String cid = (correlationId == null || correlationId.isBlank()) ? UUID.randomUUID().toString() : correlationId;
 
         var reserveReq = new ReserveInventoryRequest(
-                orderId.toString(),
+                orderId,
                 req.items().stream()
-                        // if your item is record -> sku(), qty()
                         .map(i -> new ReserveInventoryRequest.Item(i.sku(), i.qty()))
                         .toList()
         );
 
+        // 1) Reserve inventory (sync). If this fails -> DO NOT create order.
         try {
             inventoryClient.post()
                     .uri("/inventory/reserve")
-                    .header("X-Correlation-Id", correlationId)
+                    .header("X-Correlation-Id", cid)
                     .bodyValue(reserveReq)
                     .retrieve()
                     .toBodilessEntity()
                     .block();
         } catch (WebClientResponseException ex) {
             if (ex.getStatusCode() == HttpStatus.CONFLICT) {
-                throw ex; // map to 409 later (stock unavailable)
+                throw ex; // will become 409 from controller
             }
             throw ex;
         }
 
-        // only after reserve succeeds -> save order
-        OrderEntity order = new OrderEntity(orderId, OrderStatus.PENDING_PAYMENT);
-        repo.save(order);
+        // 2) Save order only after inventory reserved
+        repo.save(new OrderEntity(orderId, OrderStatus.PENDING_PAYMENT));
 
-        return new CreateOrderResponse(orderId.toString(), order.getStatus().name());
+        return new CreateOrderResponse(orderId, OrderStatus.PENDING_PAYMENT.name());
     }
 }
