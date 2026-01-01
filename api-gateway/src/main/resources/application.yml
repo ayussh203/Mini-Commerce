@@ -1,0 +1,35 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: api-gateway
+
+  cloud:
+    gateway:
+      routes:
+        - id: auth-service
+          uri: http://localhost:9000
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - StripPrefix=1
+
+        - id: order-service
+          uri: http://localhost:8082
+          predicates:
+            - Path=/api/orders/**
+
+security:
+  jwt:
+    secret: "dev-secret-change-me-please-dev-secret-change-me"
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      probes:
+        enabled: true

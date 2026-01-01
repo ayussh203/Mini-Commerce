@@ -1,0 +1,19 @@
+server:
+  port: 9000
+
+app:
+  jwt:
+    # MUST be at least 32 chars for HS256 key strength
+    secret: "CHANGE_ME_TO_A_LONG_RANDOM_SECRET_32CHARS_MIN"
+    issuer: "mini-commerce-auth"
+    ttl-seconds: 3600
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,prometheus
+  endpoint:
+    health:
+      probes:
+        enabled: true
